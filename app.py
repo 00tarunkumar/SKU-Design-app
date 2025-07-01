@@ -2,31 +2,34 @@ import streamlit as st
 import pandas as pd
 
 def split_sku(sku):
-    parts = sku.strip().split("_")  # Remove extra spaces and split
+    parts = sku.strip().split("_")
     
-    # Extract size (last part of SKU if alphabetic)
+    # Extract size if last part is alpha
     size = parts[-1] if parts[-1].isalpha() else None
-    
-    # Remove the size part from SKU
-    sku_core = parts[:-1] if size else parts
+    data_parts = parts[:-1] if size else parts
 
     extracted_skus = []
-    prefix = sku_core[0]  # First part is always the initial prefix
+    i = 0
 
-    i = 1
-    while i < len(sku_core):
-        if sku_core[i].isdigit():
-            extracted_skus.append(f"{prefix}_{sku_core[i]}")
-        else:
-            prefix = sku_core[i]  # If we find a new prefix, update it
-        i += 1  
+    while i < len(data_parts):
+        prefix = data_parts[i]
+
+        j = i + 1
+        while j < len(data_parts) and data_parts[j].isdigit():
+            extracted_skus.append(f"{prefix}_{data_parts[j]}")
+            j += 1
+
+        i = j  # move to next prefix
 
     return extracted_skus, size
 
+# -----------------------
 # Streamlit App
+# -----------------------
+
 st.title("SKU Design Processing App 😊📊")
 st.subheader("Created By : Arun Kumar 💁🏻‍♂️")
-st.write("Upload an Excel file containing Columns names SKU &  QTY to get processed results.")
+st.write("Upload an Excel file containing Columns names SKU & QTY to get processed results.")
 
 uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
 
@@ -35,11 +38,10 @@ if uploaded_file:
 
     # Ensure required columns exist
     if "SKU" in df.columns and "QTY" in df.columns:
+        # Apply updated split function
         df[["SKU_Split", "Size"]] = df["SKU"].apply(lambda x: pd.Series(split_sku(x)))
         df = df.explode("SKU_Split").drop(columns=["SKU"]).rename(columns={"SKU_Split": "SKU"})
-
-        # Keep only necessary columns
-        df = df[["SKU", "QTY","Size"]].reset_index(drop=True)
+        df = df[["SKU", "Size", "QTY"]].reset_index(drop=True)
 
         st.write("Processed Data:")
         st.dataframe(df)
